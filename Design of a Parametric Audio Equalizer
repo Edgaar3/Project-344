@@ -1,0 +1,73 @@
+import numpy as np
+from scipy.signal import chirp, butter, lfilter, freqz, spectrogram
+import matplotlib.pyplot as plt
+
+# Generate a test audio signal (chirp signal)
+fs = 44100  # Sampling frequency
+duration = 5  # seconds
+t = np.linspace(0, duration, fs * duration)  # Time array
+signal = chirp(t, f0=500, f1=2000, t1=duration, method='linear')
+
+# Design Butterworth filters
+def butter_filter(cutoff, fs, btype, order=4, low=None, high=None):
+    nyquist = 0.5 * fs
+    if btype == 'low':
+        normal_cutoff = cutoff / nyquist
+        b, a = butter(order, normal_cutoff, btype=btype, analog=False)
+    elif btype == 'high':
+        normal_cutoff = cutoff / nyquist
+        b, a = butter(order, normal_cutoff, btype=btype, analog=False)
+    elif btype == 'band':
+        low_cutoff = low / nyquist
+        high_cutoff = high / nyquist
+        b, a = butter(order, [low_cutoff, high_cutoff], btype=btype, analog=False)
+    return b, a
+
+def apply_filter(signal, b, a):
+    return lfilter(b, a, signal)
+
+# Frequency Response Plot
+def plot_frequency_response(b, a, fs, title):
+    w, h = freqz(b, a, fs=fs)
+    plt.figure(figsize=(10, 5))
+    plt.plot(w * fs / (2 * np.pi), 20 * np.log10(abs(h)))
+    plt.title(f'Frequency Response: {title}')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Magnitude [dB]')
+    plt.grid()
+    plt.show()
+
+# Spectrogram Visualization
+def plot_spectrogram(signal, fs, title):
+    f, t, Sxx = spectrogram(signal, fs=fs)
+    plt.figure(figsize=(10, 6))
+    plt.pcolormesh(t, f, 10 * np.log10(Sxx), shading='gouraud')
+    plt.title(title)
+    plt.ylabel('Frequency [Hz]')
+    plt.xlabel('Time [sec]')
+    plt.colorbar(label='Power/Frequency (dB/Hz)')
+    plt.show()
+
+# Define filters
+low_cutoff = 1000  # Hz
+high_cutoff = 1500  # Hz
+
+b_low, a_low = butter_filter(low_cutoff, fs, btype='low')
+b_high, a_high = butter_filter(high_cutoff, fs, btype='high')
+b_band, a_band = butter_filter(None, fs, btype='band', low=low_cutoff, high=high_cutoff)
+
+# Apply filters to the signal
+filtered_low = apply_filter(signal, b_low, a_low)
+filtered_high = apply_filter(signal, b_high, a_high)
+filtered_band = apply_filter(signal, b_band, a_band)
+
+# Plot frequency responses
+plot_frequency_response(b_low, a_low, fs, 'Low-pass Filter')
+plot_frequency_response(b_high, a_high, fs, 'High-pass Filter')
+plot_frequency_response(b_band, a_band, fs, 'Band-pass Filter')
+
+# Plot spectrograms
+plot_spectrogram(signal, fs, "Original Signal Spectrogram")
+plot_spectrogram(filtered_low, fs, "Low-pass Filtered Signal Spectrogram")
+plot_spectrogram(filtered_high, fs, "High-pass Filtered Signal Spectrogram")
+plot_spectrogram(filtered_band, fs, "Band-pass Filtered Signal Spectrogram")
